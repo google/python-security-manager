@@ -1,0 +1,132 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package ops.security.python_secmgr;
+
+message Config {
+  optional ops.security.python_secmgr.ConnectConfig connect_config = 1;
+  optional ops.security.python_secmgr.ExecConfig exec_config = 2;
+  optional ops.security.python_secmgr.ImportConfig import_config = 3;
+  optional ops.security.python_secmgr.OpenConfig open_config = 4;
+  optional ops.security.python_secmgr.PopenConfig popen_config = 5;
+  optional ops.security.python_secmgr.PickleConfig pickle_config = 6;
+  optional ops.security.python_secmgr.SystemConfig system_config = 7;
+}
+
+message ConnectConfig {
+  // If True, addresses not matching one of allowed_addresses patterns will be
+  // rejected. False by default. Note that if False, the field allowed_addresses
+  // will be ignored.
+  optional bool enforce_allowlist = 1 [default = true];
+
+  // String compiled into regular expression to match an address. For AF_INET6,
+  // encode the IPv6 IP number in square brackets as described in RFC 3986 (see
+  // example below).
+  // Ex:
+  // "\\[2001:db8:1f70::999:de8:7648:6e8\\]:100$" for AF_INET6
+  // "/tmp/9Lq7BNBnBycd6nxy\\.socket$" for AF_UNIX
+  repeated string allowed_addresses = 2;
+}
+
+message ExecConfig {
+  // If True, only allow execution of code from allowlisted python modules.
+  optional bool enforce_allowlist = 1 [default = true];
+
+  // List of modules that can call exec
+  // Ex:
+  // [
+  //  "collections",
+  //  "importlib._bootstrap"
+  // ]
+  // Exec should not be used in first party code. Allowlist is only for imports
+  // or third party libraries that are already using exec. This handler is not
+  // allowlisting the Exec arguments but the module calling Exec.
+  repeated string allowed_modules = 2;
+}
+
+message ImportConfig {
+  // If True, imports not listed in the allowed_import will be rejected.
+  // False by default. Note that if False, the field allowed_imports will be
+  // ignored.
+  optional bool enforce_allowlist = 1 [default = false];
+
+  // List of allowed import names.
+  // Ex:
+  // ["sys", "os"]
+  repeated string allowed_imports = 2;
+}
+
+message OpenConfig {
+  // Reject path that includes a dot-dot-slash (../) sequence to mitigate
+  // certain path traversal vulnerabilities. True by default.
+  optional bool reject_path_backtracking = 1 [default = true];
+
+  // If True, paths not matching the allowed path patterns will be rejected.
+  // False by default. Note that if this is False, the field allowed_paths and
+  // normalize_paths will be ignored.
+  optional bool enforce_allowlist = 2 [default = true];
+
+  // A mapping between allowed paths and respective flags. Note that the paths
+  // will get compiled into a regular expression.
+  // Ex:
+  // {
+  // "/build/work/.+": "rwx",
+  // "/this/is/good.*": "r",
+  // "/this/is/also/good.*": "rw"
+  // }
+  map<string, string> allowed_paths = 3;
+
+  // Whether opening symlinks are allowed. True by default.
+  optional bool reject_symlink = 4 [default = true];
+}
+
+message PopenConfig {
+  // Reject calls when Popen is called with shell=True. True by default.
+  optional bool reject_shell = 1 [default = true];
+
+  // If True, process not matching one of the allowed_processes patterns will be
+  // rejected. False by default. Note that if False, the field allowed_processes
+  // will be ignored.
+  optional bool enforce_allowlist = 2 [default = true];
+
+  // List of allowed processes
+  repeated ops.security.python_secmgr.Process allowed_processes = 3;
+}
+
+message Process {
+  // List of strings, each one compiled into regular expression to match popen
+  // args parameters (in order).
+  // Ex:
+  // ["echo", "hello world"]
+  repeated string args = 1;
+
+  // Match the cwd popen parameter. Popen cwd parameter overrides the current
+  // working directory.
+  optional string cwd = 2;
+
+  // Replacement program to execute.
+  optional string executable = 3;
+}
+
+message PickleConfig {
+  // If true, rejects any unpickling event. Default is True. It is possible to
+  // construct malicious pickle data which will execute arbitrary code during
+  // unpickling. Never unpickle data that could have come from an untrusted
+  // source. Safer serialization formats such as json or proto are preferred.
+  optional bool reject_pickle_find_class = 1 [default = true];
+}
+
+message SystemConfig {}
